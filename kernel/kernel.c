@@ -12,7 +12,7 @@ void kernel_main() {
     asm("int $2");
     asm("int $3");
 
-    clear_screen();
+    clear_screen(WHITE_ON_BLUE);
 /*
     kprint("Type something, it will go through the kernel\n"
         "Type END to halt the CPU or PAGE to request a kmalloc()\n> ");

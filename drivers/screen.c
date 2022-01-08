@@ -1,7 +1,4 @@
 #include "screen.h"
-#include "../cpu/ports.h"
-#include "../libc/mem.h"
-#include <stdint.h>
 
 /* Declaration of private functions */
 int get_cursor_offset();
@@ -11,14 +8,7 @@ int get_offset(int col, int row);
 int get_offset_row(int offset);
 int get_offset_col(int offset);
 
-/**********************************************************
- * Public Kernel API functions                            *
- **********************************************************/
 
-/**
- * Print a message on the specified location
- * If col, row, are negative, we will use the current offset
- */
 void kprint_at(char *message, int col, int row) {
     /* Set cursor if col/row are negative */
     int offset;
@@ -77,27 +67,14 @@ void kprint_backspace() {
 }
 
 
-/**********************************************************
- * Private kernel functions                               *
- **********************************************************/
-
-
-/**
- * Innermost print function for our kernel, directly accesses the video memory 
- *
- * If 'col' and 'row' are negative, we will print at current cursor location
- * If 'attr' is zero it will use 'white on black' as default
- * Returns the offset of the next character
- * Sets the video cursor to the returned offset
- */
 int print_char(char c, int col, int row, char attr) {
     uint8_t *vidmem = (uint8_t*) VIDEO_ADDRESS;
     if (!attr) attr = WHITE_ON_BLACK;
 
     /* Error control: print a red 'E' if the coords aren't right */
-    if (col >= MAX_COLS || row >= MAX_ROWS) {
-        vidmem[2*(MAX_COLS)*(MAX_ROWS)-2] = 'E';
-        vidmem[2*(MAX_COLS)*(MAX_ROWS)-1] = RED_ON_WHITE;
+    if (col >= SCREEN_WIDTH || row >= SCREEN_HEIGHT) {
+        vidmem[2*(SCREEN_WIDTH)*(SCREEN_HEIGHT)-2] = 'E';
+        vidmem[2*(SCREEN_WIDTH)*(SCREEN_HEIGHT)-1] = RED_ON_WHITE;
         return get_offset(col, row);
     }
 
@@ -118,18 +95,18 @@ int print_char(char c, int col, int row, char attr) {
     }
 
     /* Check if the offset is over screen size and scroll */
-    if (offset >= MAX_ROWS * MAX_COLS * 2) {
+    if (offset >= SCREEN_HEIGHT * SCREEN_WIDTH * 2) {
         int i;
-        for (i = 1; i < MAX_ROWS; i++) 
+        for (i = 1; i < SCREEN_HEIGHT; i++) 
             memory_copy((uint8_t*)(get_offset(0, i) + VIDEO_ADDRESS),
                         (uint8_t*)(get_offset(0, i-1) + VIDEO_ADDRESS),
-                        MAX_COLS * 2);
+                        SCREEN_WIDTH * 2);
 
         /* Blank last line */
-        char *last_line = (char*) (get_offset(0, MAX_ROWS-1) + (uint8_t*) VIDEO_ADDRESS);
-        for (i = 0; i < MAX_COLS * 2; i++) last_line[i] = 0;
+        char *last_line = (char*) (get_offset(0, SCREEN_HEIGHT-1) + (uint8_t*) VIDEO_ADDRESS);
+        for (i = 0; i < SCREEN_WIDTH * 2; i++) last_line[i] = 0;
 
-        offset -= 2 * MAX_COLS;
+        offset -= 2 * SCREEN_WIDTH;
     }
 
     set_cursor_offset(offset);
@@ -157,19 +134,28 @@ void set_cursor_offset(int offset) {
     port_byte_out(REG_SCREEN_DATA, (uint8_t)(offset & 0xff));
 }
 
-void clear_screen() {
-    int screen_size = MAX_COLS * MAX_ROWS;
+void clear_screen(char colorcode) {
+    int screen_size = SCREEN_WIDTH * SCREEN_HEIGHT;
     int i;
     uint8_t *screen = (uint8_t*) VIDEO_ADDRESS;
 
     for (i = 0; i < screen_size; i++) {
         screen[i*2] = ' ';
-        screen[i*2+1] = WHITE_ON_BLACK;
+        screen[i*2+1] = colorcode;
     }
     set_cursor_offset(get_offset(0, 0));
 }
 
+void invert_at(uint8_t col, uint8_t row) {
+    uint8_t *vidmem = (uint8_t*) VIDEO_ADDRESS;
+    int offset = get_offset(col, row);
 
-int get_offset(int col, int row) { return 2 * (row * MAX_COLS + col); }
-int get_offset_row(int offset) { return offset / (2 * MAX_COLS); }
-int get_offset_col(int offset) { return (offset - (get_offset_row(offset)*2*MAX_COLS))/2; }
+    uint8_t attr = vidmem[offset + 1]; 
+    vidmem[offset + 1] = (attr << 4) | (attr >> 4);
+}
+
+int get_offset(int col, int row) { return 2 * (row * SCREEN_WIDTH + col); }
+int get_offset_row(int offset) { return offset / (2 * SCREEN_WIDTH); }
+int get_offset_col(int offset) { return (offset - (get_offset_row(offset)*2*SCREEN_WIDTH))/2; }
+
+

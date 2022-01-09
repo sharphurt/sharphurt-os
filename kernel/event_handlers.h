@@ -8,7 +8,9 @@
 
 bool buttons[3];
 
-void keyboard_input(char* input);
+void key_released(int scancode, char chr);
+
+void key_pressed(int scancode, char chr);
 
 void mouse_start_move(uint8_t x, uint8_t y);
 

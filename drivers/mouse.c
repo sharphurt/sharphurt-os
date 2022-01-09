@@ -26,6 +26,8 @@ static void mouse_callback(registers_t *regs)
         mouse_cycle = 0;
         break;
     }
+
+    UNUSED(regs);
 }
 
 void process_mouse_packet()
